@@ -5,12 +5,149 @@ date: "2023-06-03"
 output: word_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# 1
+
+Create a `parsnip` specification for a linear regression model.
+
+# HW code
+
+The following code specifies the linear regression model, calling this parsnip specification lm_spec
+```{r}
+lm_spec <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm")
 ```
 
-## R Markdown
+# 2
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Once we have the specification we can `fit` it by supplying a formula expression and the data we want to fit the model on.
+The formula is written on the form `y ~ x` where `y` is the name of the response and `x` is the name of the predictors.
+The names used in the formula should match the names of the variables in the data set passed to `data`. 
 
-#Test for HW2 in GitHub
+Use `lm_spec` to fit the model of `medv` predicted by every predictor variable. Hint: you can use "." to specify every predictor.
+
+# HW code
+
+The following code uses the specified linear regression model from above and fits it to a formula specific to the dataset. code after fit() specifies the response variable first (in this case, medv, which means the median value of each house), and the period after the tilde (~ .) tells r to include all other variables in the dataset as predictors. The dataset is last, and this dataset is called Boston (it contains data on the housing values in several Boston suburbs).
+The result of the code below creates a parsnip model object called lm_fit.
+```{r}
+lm_fit <- lm_spec %>%
+  fit(medv ~ ., data = Boston)
+lm_fit
+```
+
+# 3
+
+Get a summary of your model using `pluck` and `summary`
+
+# HW code
+The pluck function can tell us about the underlying fit object. The summary function can give us further information about the fit (parameter estimates, lack-of-fit statistics, slopes, p-values, overall F-statistic, R squared, etc).
+```{r}
+lm_fit %>% 
+  pluck("fit") %>%
+  summary()
+```
+
+# 4
+
+Take a look at `lm_fit` with `tidy`
+
+# HW Code
+The tidy() function can also give parameter estimates but in table form (may be easier to read and understand).
+```{r}
+tidy(lm_fit)
+```
+
+# 5
+
+Extract the model statistics using `glance`
+
+#HW code
+The glance() function gives a one-row data frame of the model statistics.
+```{r}
+glance(lm_fit)
+```
+
+# 6
+
+Get the predicted `medv` values from your model using `predict`
+
+#HW code
+The predict() function uses the fit of the model we built to predict the median house values from the dataset (note that we used the dataset to build the model and to make these predictions, which in practice is a no no!)
+```{r}
+predict(lm_fit, new_data = Boston)
+```
+
+
+# 7
+
+Bind the predicted columns to your existing data
+
+#HW code
+The code below binds the column of predicted median house values to the existing dataset. This is useful to have a side-by-side comparison of the observed values and predicted values to see how well the model did.
+```{r}
+bind_cols(
+  predict(lm_fit, new_data = Boston),
+  Boston
+) %>%
+  select(medv, .pred)
+```
+
+# 8
+
+Now, make things easier by just using the `augment` function to do this.
+
+#HW code
+This is a more efficient way to bind the predicted values to the dataset (labeled .pred). It also provides information about the residuals (.resid) which are the difference between the observed and the predicted value for each observation.
+```{r}
+augment(lm_fit, new_data = Boston)
+```
+
+
+# 9
+
+Focus specifically on the median value and the `.pred`, then you can select those two columns
+
+#HW code
+This is using hte augment function and selecting only the two columns for observed and predicted values for an easier side-by-side comparison of the two.
+```{r}
+augment(lm_fit, new_data = Boston) %>%
+  select(medv, .pred)
+```
+
+
+# 10
+
+Create a `recipe` with an interaction step between lstat and age
+
+#HW code
+The code below creates a recipe, which provides a set of instructions for a model. This specific recipe is a linear model (similar to the above model with all predictors) but with an added interaction between the two variables of lstat (lower socioeconomic status) and age (age of building/house) using the step_interact() function to specify which variables should be in the interaction.
+```{r}
+rec_spec <- recipe(medv ~ ., data = Boston) %>%
+  step_interact(~ lstat:age)
+```
+
+# 11
+
+Create a `workflow` and add your lm_spec model and your rec_spec recipe.
+
+#HW code
+The following code creates a workflow, which can specify a series of steps for analyzing the data. The two steps added to the workflow below are the specific model (in this example, the linear regression model, called lm_spec) and the recipe created in the above step to specify the interaction between lstat and age (called rec_spec). 
+```{r}
+lm_wf <- workflow() %>%
+  add_model(lm_spec) %>%
+  add_recipe(rec_spec)
+```
+
+# 12
+
+Fit your `workflow`.
+
+#HW code
+Last step is to fit the workflow to the dataset. This should provide the intercept and slope outputs for all predictor variables, in addition to the slope for the interaction variable of lstat*age. 
+If I wanted to, I could also use some of the steps below to gain further information about parameter estimates, fit statistics, and predictions for median house values using this new model to see how it compates to the multiple regression model that did not involve the interaction variable.
+```{r}
+lm_wf %>% fit(Boston)
+```
+
+
